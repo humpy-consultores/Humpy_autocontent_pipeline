@@ -1,0 +1,30 @@
+# Variables de entorno — NUNCA subir al repo
+.env
+
+# Entorno virtual de Python
+venv/
+env/
+.venv/
+
+# Documentos Word reales (datos sensibles)
+input/*.docx
+data/samples/*.docx
+output/*.json
+
+# Cache de Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# IDEs
+.vscode/
+.idea/
+*.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Archivos temporales
+*.tmp
+*.bak
