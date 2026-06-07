@@ -1,6 +1,6 @@
 # Humpy Content Pipeline
 
-Pipeline de automatización de contenido educativo para la plataforma Humpy. Convierte material académico en Word (.docx) en microlecciones y quizzes usando Python y Claude API, validando el contenido en tablas staging antes de publicarlo.
+Pipeline de automatización de contenido educativo para la plataforma Humpy. Convierte material académico en microlecciones y quizzes usando Python y Claude API, validando el contenido en tablas staging antes de publicarlo.
 
 ---
 
@@ -192,7 +192,7 @@ El backlog del proyecto está gestionado en GitHub Projects de este repositorio.
 
 | Fase | Estado |
 |---|---|
-| Fase 1 — Definición del input y estructura de documentos | Completado |
+| Fase 1 — Definición del input y estructura de documentos | Pendiente |
 | Fase 2 — Extracción y limpieza de contenido | Pendiente |
 | Fase 3 — Generación de microlecciones y preguntas | Pendiente |
 | Fase 4 — Validación del output JSON | Pendiente |
@@ -200,12 +200,3 @@ El backlog del proyecto está gestionado en GitHub Projects de este repositorio.
 | Fase 6 — Revisión manual y publicación | Pendiente |
 | Fase 7 — Automatización en lote y logs | Pendiente |
 
----
-
-## Equipo
-
-| Rol | Responsabilidad |
-|---|---|
-| PM / Dev | Arquitectura del pipeline, integración API |
-| Dev plataforma | Schema Supabase, tablas staging, entorno de pruebas |
-| Encargado de contenido | Validación de documentos de entrada y calidad de preguntas |
