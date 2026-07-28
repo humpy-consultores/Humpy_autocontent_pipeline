@@ -1,7 +1,15 @@
 """
-Reformatea Bioquimica_Tema_1_Enzimas.docx al formato estándar del pipeline:
-- Heading 1  → MICROLECCIÓN N: Título
-- Heading 2  → bloques temáticos principales
+Reformatea Bioquimica_Tema_1_Enzimas.docx al formato estándar del pipeline.
+
+El documento completo representa UNA sola microlección (Tema 1: Enzimas).
+Las secciones internas ("Microlección 1:", "Microlección 2:", etc.) del
+original se convierten en bloques temáticos (Heading 2), no en microlecciones
+separadas.
+
+Resultado:
+- Title      → título del curso
+- Heading 1  → MICROLECCIÓN 1: Enzimas  (única, engloba todo)
+- Heading 2  → bloques temáticos (las secciones del original)
 - List Bullet → ítems de lista cortos
 - Normal      → cuerpo de texto explicativo
 - Elimina quizzes (los genera el pipeline)
@@ -9,10 +17,12 @@ Reformatea Bioquimica_Tema_1_Enzimas.docx al formato estándar del pipeline:
 """
 
 import re
+from pathlib import Path
 from docx import Document
 
-INPUT  = "Bioquimica_Tema_1_Enzimas.docx"
-OUTPUT = "Bioquimica_Tema_1_Enzimas_FORMATO.docx"
+ROOT   = Path(__file__).resolve().parent.parent
+INPUT  = ROOT / "data/input/Bioquimica_Tema_1_Enzimas.docx"
+OUTPUT = ROOT / "data/input/Bioquimica_Tema_1_Enzimas_FORMATO.docx"
 
 # ---------------------------------------------------------------------------
 # Emoji removal
@@ -74,7 +84,11 @@ def reformat():
     src = Document(INPUT)
     dst = Document()
 
+    # Course title
     dst.add_heading("BIOQUÍMICA – ENZIMAS", level=0)
+
+    # Single microlección that wraps the entire document
+    dst.add_heading("MICROLECCIÓN 1: Enzimas", level=1)
 
     in_quiz = False
 
@@ -83,7 +97,7 @@ def reformat():
         if not raw:
             continue
 
-        # Detect quiz block start → skip until next microlección
+        # Quiz block start → skip until end of quiz
         if QUIZ_RE.search(raw):
             in_quiz = True
             continue
@@ -92,20 +106,19 @@ def reformat():
         if not text:
             continue
 
-        # Check microlección pattern before applying quiz skip
+        # "Microlección N: Título" lines in the original → become Heading 2 blocks
         ml_match = MICROLECCION_RE.match(text)
         if ml_match:
             in_quiz = False
-            heading = f"MICROLECCIÓN {ml_match.group(1)}: {ml_match.group(2).strip()}"
-            dst.add_heading(heading, level=1)
+            dst.add_heading(ml_match.group(2).strip(), level=2)
             continue
 
         if in_quiz:
             continue
 
-        # Classify
+        # Additional section headers within each original "microlección" → Heading 3
         if is_section_header(text):
-            dst.add_heading(text.rstrip(":"), level=2)
+            dst.add_heading(text.rstrip(":"), level=3)
         elif is_list_item(text):
             dst.add_paragraph(text, style="List Bullet")
         else:
