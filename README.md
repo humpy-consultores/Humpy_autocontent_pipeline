@@ -1,25 +1,29 @@
-# Humpy Content Pipeline
+# Humpy Autocontent Pipeline
 
-Pipeline de automatización de contenido educativo para la plataforma Humpy. Convierte material académico en microlecciones y quizzes usando Python y Claude API, validando el contenido en tablas staging antes de publicarlo.
+Pipeline de automatización de contenido educativo para la plataforma Humpy. Convierte documentos Word en microlecciones HTML y preguntas de quiz usando Claude API, con una etapa de revisión humana en Supabase antes de publicar.
 
 ---
 
-## Objetivo
-
-Automatizar la conversión de material académico en microlecciones y preguntas de quiz, con una etapa de revisión intermedia antes de publicar en las tablas activas de la app.
+## Flujo del pipeline
 
 ```
-Documento Word (.docx)
-        |
-  Extracción de texto por secciones
-        |
-  Limpieza y estructuración
-        |
-  Generación de microlecciones + preguntas (Claude API)
-        |
-  Tablas staging (revisión antes de publicar)
-        |
-  Publicación en Humpy
+.docx
+  │
+  ├─ extractor.py      Lee estilos de Word → JSON estructurado
+  │                    Extrae imágenes embebidas → data/input/images/<doc>/
+  │
+  ├─ generator.py      Claude API (claude-opus-4-8)
+  │                    Paso 1: genera HTML semántico por microlección
+  │                    Paso 2: genera quiz con niveles de Bloom
+  │
+  ├─ validator.py      Valida esquema del JSON generado        (próximamente)
+  │
+  ├─ uploader.py       Sube imágenes a Supabase Storage
+  │                    Reemplaza PLACEHOLDERs con URLs reales
+  │                    Inserta en staging_microlecciones + staging_preguntas
+  │
+  └─ [Revisión humana en Supabase]
+       Aprueba / rechaza → publicación en Humpy
 ```
 
 ---
@@ -27,176 +31,173 @@ Documento Word (.docx)
 ## Estructura del repositorio
 
 ```
-humpy-content-pipeline/
-|
-├── src/                         # Scripts Python del pipeline
-│   ├── extractor.py             # Lectura y extracción del Word por secciones
-│   ├── cleaner.py               # Limpieza y normalización del texto extraído
-│   ├── generator.py             # Generación de microlecciones y preguntas con Claude API
-│   ├── validator.py             # Validación y limpieza del JSON generado
-│   ├── uploader.py              # Inserción en tablas staging de Supabase
-│   └── pipeline.py              # Script principal que orquesta todo el flujo
-│
-├── sql/                         # Scripts SQL para Supabase
-│   ├── staging_tables.sql       # Creación de tablas staging
-│   └── views.sql                # Vistas para revisión de contenido antes de publicar
-│
-├── docs/                        # Documentación del proyecto
-│   ├── architecture.md          # Diagrama y decisiones de arquitectura
-│   ├── supabase-schema.md       # Esquema de tablas relevantes
-│   └── prompt-design.md         # Diseño y versiones de prompts usados
-│
-├── notebooks/                   # Pruebas y demos por etapa del pipeline
-│   ├── 01_extraccion.ipynb
-│   ├── 02_generacion.ipynb
-│   └── 03_staging.ipynb
-│
-├── data/
-│   └── samples/                 # Archivos de ejemplo para pruebas (no datos reales)
-│
-├── .env.example                 # Variables de entorno requeridas (sin valores reales)
-├── .gitignore                   # Archivos excluidos del repositorio
-├── requirements.txt             # Dependencias de Python
-└── README.md                    # Este archivo
+src/
+  extractor.py          Parsea .docx → JSON estructurado + extrae imágenes
+  generator.py          Genera HTML + quiz con Claude API
+  validator.py          Valida JSON del generator            (próximamente)
+  uploader.py           Sube a Supabase Storage y staging tables
+  pipeline.py           Orquestador end-to-end               (próximamente)
+
+scripts/
+  reformat_docx.py              Convierte docs legacy al formato estándar
+  reformat_sistema_nervioso.py  Ejemplo: extrae imágenes de tablas con Claude Vision
+
+tests/
+  test_extractor.py     14 tests (estructura, imágenes, inline tags)
+  test_generator.py     11 tests (prompts, parsing, pipeline completo)
+  test_validator.py     Placeholder
+
+docs/
+  formato-contenido.md  Estándar de formato Word para creadores de contenido
+
+data/
+  input/                .docx a procesar (excluidos del repo)
+  input/images/         Imágenes extraídas automáticamente por el extractor
+  output/               JSONs generados (excluidos del repo)
+
+sql/
+  staging_tables.sql    Esquema de tablas staging en Supabase  (próximamente)
 ```
 
 ---
 
 ## Instalación
 
-### 1. Clonar el repositorio
-
 ```bash
-git clone https://github.com/tu-usuario/humpy-content-pipeline.git
-cd humpy-content-pipeline
-```
+git clone https://github.com/humpy-consultores/Humpy_autocontent_pipeline.git
+cd Humpy_autocontent_pipeline
 
-### 2. Crear entorno virtual
-
-```bash
 python -m venv venv
-source venv/bin/activate        # Mac/Linux
-venv\Scripts\activate           # Windows
-```
+source venv/bin/activate   # Mac/Linux
+venv\Scripts\activate      # Windows
 
-### 3. Instalar dependencias
-
-```bash
 pip install -r requirements.txt
-```
 
-### 4. Configurar variables de entorno
-
-```bash
 cp .env.example .env
-# Edita el archivo .env con tus credenciales reales
+# Editar .env con las credenciales reales
 ```
 
 ---
 
-## Variables de entorno requeridas
-
-Crea un archivo `.env` en la raíz del proyecto con estos valores:
+## Variables de entorno
 
 ```env
-ANTHROPIC_API_KEY=tu_api_key_de_claude
+ANTHROPIC_API_KEY=sk-ant-...
 SUPABASE_URL=https://tu-proyecto.supabase.co
 SUPABASE_KEY=tu_service_role_key
 ```
-
-IMPORTANTE: Nunca subas el archivo `.env` al repositorio. Ya está incluido en `.gitignore`.
 
 ---
 
 ## Uso
 
-### Procesar un solo documento
+### Correr el pipeline completo (manual por etapas)
 
 ```bash
-python src/pipeline.py --input data/samples/mi_documento.docx
+# 1. Extraer contenido del Word (también extrae imágenes automáticamente)
+python src/extractor.py --input data/input/documento.docx --output data/output/extracted.json
+
+# 2. Generar HTML + quiz con Claude API
+python src/generator.py --input data/output/extracted.json --output data/output/generated.json --questions 5
+
+# 3. Subir a Supabase staging (sube imágenes + inserta registros)
+python src/uploader.py --generated data/output/generated.json --extracted data/output/extracted.json
 ```
 
-### Procesar múltiples documentos en lote
+### Correr tests
 
 ```bash
-python src/pipeline.py --input data/samples/ --batch
-```
-
-### Solo extraer texto (sin generar preguntas)
-
-```bash
-python src/extractor.py --input data/samples/mi_documento.docx
+python -m pytest tests/ -v
 ```
 
 ---
 
-## Formato de output (JSON)
+## Formato del documento Word
 
-Cada pregunta generada sigue esta estructura antes de insertarse en staging:
+Los documentos deben seguir el estándar definido en [`docs/formato-contenido.md`](docs/formato-contenido.md).
+
+Resumen de estilos requeridos:
+
+| Elemento | Estilo Word |
+|---|---|
+| Título del curso | `Title` |
+| Microlección | `Heading 1` — formato: `MICROLECCIÓN N: Título` |
+| Bloque temático | `Heading 2` |
+| Subbloque | `Heading 3` (opcional) |
+| Cuerpo de texto | `Normal` |
+| Listas | Viñetas / Numeración de Word |
+| Imagen inline | Insertar inline + línea `[IMG: descripción]` debajo |
+| Fórmulas | `[FORMULA: expresión]` |
+| Énfasis | `[ROJO: texto]`, `[AMARILLO: texto]`, `[AZUL: texto]` |
+
+### Imágenes
+
+El extractor detecta automáticamente las imágenes embebidas en el documento, las guarda en `data/input/images/<nombre_doc>/` y las referencia con `local_path` en el JSON. El uploader las sube a Supabase Storage y reemplaza los `PLACEHOLDER` en el HTML con las URLs reales.
+
+No es necesario hacer nada manualmente — solo insertar la imagen inline en Word y escribir `[IMG: descripción]` en el párrafo siguiente.
+
+---
+
+## Output del generator
 
 ```json
 {
-  "pregunta": "¿Cuál es el objetivo principal del proceso de CIP?",
-  "tipo": "opcion_multiple",
-  "dificultad": "media",
-  "bloom": "comprender",
-  "opciones": [
-    { "texto": "Limpiar los equipos de producción", "correcta": true },
-    { "texto": "Aumentar la velocidad de la línea", "correcta": false },
-    { "texto": "Reducir el tiempo de cambio", "correcta": false },
-    { "texto": "Calibrar los sensores", "correcta": false }
+  "title": "FISIOLOGÍA CELULAR",
+  "microlecciones": [
+    {
+      "numero": 1,
+      "titulo": "Membrana celular",
+      "html": "<section>...</section>",
+      "quiz": {
+        "preguntas": [
+          {
+            "nivel_bloom": "recordar",
+            "enunciado": "¿Cuál es la función principal de la membrana celular?",
+            "opciones": {"a": "...", "b": "...", "c": "...", "d": "..."},
+            "respuesta_correcta": "b",
+            "explicacion": "La membrana delimita y protege la célula."
+          }
+        ]
+      }
+    }
   ]
 }
 ```
 
 ---
 
-## Tablas staging
+## Tablas de Supabase
 
-Las preguntas y microlecciones generadas no se publican directamente. Primero se insertan en tablas staging donde pueden ser revisadas y aprobadas manualmente antes de llegar a los usuarios. Los scripts SQL para crear estas tablas están en la carpeta `sql/`.
+El uploader inserta en tablas de **staging** — el contenido no se publica directamente:
 
----
-
-## Dependencias principales
-
-| Librería | Uso |
+| Tabla | Descripción |
 |---|---|
-| `python-docx` | Lectura y extracción del documento Word |
-| `anthropic` | Conexión con Claude API para generación de contenido |
-| `supabase` | Inserción de preguntas en la base de datos |
-| `python-dotenv` | Manejo de variables de entorno |
+| `documentos` | Registro de cada .docx procesado |
+| `staging_microlecciones` | HTML generado, pendiente de aprobación |
+| `staging_preguntas` | Quiz generado, pendiente de aprobación |
+| `microlecciones` | Producción — solo contenido aprobado |
+| `preguntas` | Producción — solo contenido aprobado |
 
 ---
 
-## Cómo contribuir
+## Estado del proyecto
 
-1. Crea una rama con el nombre de tu feature: `git checkout -b feature/nombre-feature`
-2. Haz tus cambios y escribe tests si aplica
-3. Abre un Pull Request describiendo qué cambiaste y por qué
-4. Espera revisión antes de hacer merge a `main`
-
-### Convenciones de nombres de ramas
-
-| Tipo | Prefijo | Ejemplo |
-|---|---|---|
-| Nueva funcionalidad | `feature/` | `feature/validacion-preguntas` |
-| Corrección de bug | `fix/` | `fix/encoding-caracteres` |
-| Documentación | `docs/` | `docs/actualizar-readme` |
-| Pruebas | `test/` | `test/extractor-tablas` |
-
----
-
-## Backlog
-
-El backlog del proyecto está gestionado en GitHub Projects de este repositorio.
-
-| Fase | Estado |
+| Módulo | Estado |
 |---|---|
-| Fase 1 — Definición del input y estructura de documentos | Pendiente |
-| Fase 2 — Extracción y limpieza de contenido | Pendiente |
-| Fase 3 — Generación de microlecciones y preguntas | Pendiente |
-| Fase 4 — Validación del output JSON | Pendiente |
-| Fase 5 — Integración con tablas staging de Supabase | Pendiente |
-| Fase 6 — Revisión manual y publicación | Pendiente |
-| Fase 7 — Automatización en lote y logs | Pendiente |
+| `src/extractor.py` | ✅ Completo — 14 tests |
+| `src/generator.py` | ✅ Completo — 11 tests |
+| `src/uploader.py` | ✅ Implementado |
+| `src/validator.py` | 🔄 En desarrollo |
+| `src/pipeline.py` | 🔄 Pendiente |
+| `sql/staging_tables.sql` | 🔄 Pendiente |
 
+---
+
+## Stack
+
+- **Python 3.10+**
+- [`anthropic`](https://github.com/anthropics/anthropic-sdk-python) — Claude API (`claude-opus-4-8`)
+- [`supabase`](https://github.com/supabase-community/supabase-py) — base de datos y storage
+- [`python-docx`](https://python-docx.readthedocs.io/) — lectura de documentos Word
+- [`python-dotenv`](https://github.com/theskumar/python-dotenv) — variables de entorno
+- [`pytest`](https://pytest.org/) — testing

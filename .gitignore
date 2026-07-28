@@ -29,3 +29,4 @@ logs/
 # Archivos temporales
 *.tmp
 *.bak
+data/input/images/
