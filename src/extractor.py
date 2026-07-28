@@ -103,7 +103,9 @@ def _para_to_element(para) -> dict | None:
     if "list" in style or para.style.name.startswith("List"):
         if not text:
             return None
-        return {"type": "list_item", "text": text, "level": para._p.pPr.numPr.ilvl.val if para._p.pPr and para._p.pPr.numPr else 0}
+        pPr = para._p.pPr
+        level = pPr.numPr.ilvl.val if (pPr is not None and pPr.numPr is not None) else 0
+        return {"type": "list_item", "text": text, "level": level}
 
     # Normal body text
     if style == "normal" and text:
