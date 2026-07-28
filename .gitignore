@@ -7,9 +7,10 @@ env/
 .venv/
 
 # Documentos Word reales (datos sensibles)
-input/*.docx
+data/input/*.docx
+data/input/*.doc
 data/samples/*.docx
-output/*.json
+data/output/*.json
 
 # Cache de Python
 __pycache__/
